@@ -65,6 +65,7 @@ def load(name):
 BLOCKS = {'\u2588': 1.0, '\u2593': 0.75, '\u2592': 0.5, '\u2591': 0.25}
 LOWER = {chr(0x2581 + i): (i + 1) / 8 for i in range(7)}    # \u2581\u2582\u2583\u2584\u2585\u2586\u2587
 HALVES = {'\u258c': 'left', '\u2590': 'right', '\u2580': 'top'}
+TICKS = {'\u2524', '\u251c', '\u2561', '\u255e'}    # title brackets - drop only, no up-poke
 
 
 def _load_fallback():
@@ -123,6 +124,15 @@ def grid_image(screen):
                        'top':   [x * CW, y * CH, (x + 1) * CW - 1, y * CH + CH // 2 - 1],
                        }[HALVES[ch]]
                 drw.rectangle(box, fill=c.fg or (255, 255, 255))
+            elif ch in TICKS:
+                # title brackets: draw the glyph, then erase above the border
+                # line so the vertical tick drops INTO the window instead of
+                # poking out the top edge (JBM draws these full-cell-height)
+                cym = y * CH + CH // 2
+                drw.text((x * CW + CW // 2, cym), ch, font=glyph_font(ch, c.bold),
+                         fill=c.fg or (255, 255, 255), anchor='mm')
+                drw.rectangle([x * CW, y * CH, (x + 1) * CW - 1, cym - 2],
+                              fill=c.bg or (0, 0, 0))
             elif ch != ' ':
                 drw.text((x * CW + CW // 2, y * CH + CH // 2), ch,
                          font=glyph_font(ch, c.bold),
