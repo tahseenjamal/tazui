@@ -89,6 +89,37 @@ def test_rows_is_semantic_content_rows():
     assert app.tbl.height == 8 + Table.CHROME        # rows + border/header chrome
 
 
+# ── Content-fit height: the window clears the status bar and centers ─────────
+
+class TallFormApp(TuiApp):
+    """Enough rows that a top-anchored content-fit window would reach the
+    status bar (the Fig-16.1 bug: window bottom + shadow clipped by the bar)."""
+    def build_view(self):
+        page = self.page(0.5, title='Tall form')
+        for i in range(7):
+            page.input(label=f'Field {i}')
+        self.win = page.win
+        return page
+
+
+def test_content_fit_window_clears_the_status_bar():
+    app = make(TallFormApp)
+    win = app.win
+    from cookieui import SHADOW
+    lowest = win.y + win.height - 1 + (SHADOW if getattr(win, 'shadow', False) else 0)
+    status_top = H - 3                          # AUTO_STATUS bar is the bottom 3 rows
+    assert lowest < status_top, 'window + shadow must not touch the status bar'
+
+
+def test_short_content_fit_window_is_vertically_centered():
+    app = make(FitApp)                          # two labels — short
+    win = app.win
+    sh = 1 if getattr(win, 'shadow', False) else 0
+    top_margin = win.y - 1
+    bottom_margin = (H - 3 - 1) - (win.y + win.height - 1 + sh)
+    assert abs(top_margin - bottom_margin) <= 1, 'content-fit window should sit centered'
+
+
 # ── Content-fit width: a too-wide row widens the window, never overflows it ──
 
 class WideRowApp(TuiApp):

@@ -847,6 +847,25 @@ class TuiApp:
                                            align=align)
             if getattr(w, '_auto_height', False):
                 w.fit_content_height()
+                if getattr(w, '_auto_vcenter', False):
+                    # Now that the real height is known, center the window in the
+                    # band ABOVE the status bar (a content-fit window anchored high
+                    # would otherwise grow down onto the status bar and clip its
+                    # shadow). Reserve 3 rows when AUTO_STATUS will add a bar.
+                    H = self.ts.height()
+                    sh = SHADOW if getattr(w, 'shadow', False) else 0
+                    reserve = 3 if (self.AUTO_STATUS and self.STATUS_HINT
+                                    and not getattr(view, '_has_status', False)) else 0
+                    usable_bottom = H - reserve - 1        # lowest row win+shadow may use
+                    occupied = w.height + sh
+                    new_y = max(1, 1 + (usable_bottom - occupied) // 2)
+                    if new_y + occupied - 1 > usable_bottom:      # clamp to the band
+                        new_y = max(1, usable_bottom - occupied + 1)
+                    dy = new_y - w.y
+                    if dy:
+                        w.y = new_y
+                        for k in w._kids:
+                            k.y += dy
                 for buttons, gap, spacing, align in getattr(w, '_below_rows', []):
                     by = stack_below(w.y, w.height, gap=gap)
                     if buttons:
@@ -1209,6 +1228,9 @@ class TuiApp:
             win = Window(wx, wy, ww, H - wy - 2, title=title, icon=icon)
             win._auto_height = True                      # finalized on push_view
             win._auto_width = True                       # widens if a row needs more
+            win._auto_vcenter = True                     # re-centered vertically once
+            #                                              its real height is known, so
+            #                                              it clears the status bar
         else:
             wx, wy, ww, wh = self.centered_window(resolve_size(width, W),
                                                   resolve_size(height, H))
