@@ -102,8 +102,14 @@ class Theme:
     eh:  str = '═'
     ev:  str = '║'
 
-    # title_l / title_r removed — titles are now written directly over the
-    # border line without connector characters (looks correct on rounded corners)
+    # ── Title brackets cut into the top border (the classic Newt look) ───
+    # Drawn in title_fg, flanking the title:  ───┤ Title ├───  on a single
+    # border, and  ═══╡ Title ╞═══  on a dialog's double border. Set a pair to
+    # '' to drop the brackets for a theme.
+    title_l:  str = '┤'   # before the title, single-line border
+    title_r:  str = '├'
+    etitle_l: str = '╡'   # before the title, dialog's double-line border
+    etitle_r: str = '╞'
 
     # ── Scrollbar ─────────────────────────────────────────────────────────
     sc_up:    str = '▲'

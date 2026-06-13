@@ -63,6 +63,8 @@ using it re-renders accordingly — same construction, different characters:
 | `rg_l rg_r rg_mark` | `( ) *` | RadioGroup |
 | `pb_l pb_r pb_fill pb_track` | `[ ] █ ░` | ProgressBar |
 | `entry_fill` | `_` | TextInput empty space |
+| `title_l title_r` | `┤ ├` | brackets flanking a window/listbox/table title (`───┤ Title ├───`) |
+| `etitle_l etitle_r` | `╡ ╞` | brackets flanking a Dialog title on its double border (`═══╡ Title ╞═══`) |
 | `title_align` | `'center'` | frame titles (`'left'` supported) |
 | `shadow_on` / `shadow_color` | `True` / `(1, 57, 75)` | every drop shadow (master switch) |
 
