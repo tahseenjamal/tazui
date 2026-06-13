@@ -152,4 +152,4 @@ TuiApp (framework) ──calls──► YourApp (UI) ──calls──► copy_f
 
 | Pattern | Example |
 |---|---|
-| Raw `App`/`View` (no TuiApp auto-wiring), manual geometry, `WindowColumn`, `stack_beside`/`stack_below`, custom status bar, background thread + custom widget | `html2pdf.py` — read the banner in that file first |
+| Raw `App`/`View` (no TuiApp auto-wiring), manual geometry with `stack_below`/`stack_beside`, custom status bar, background thread + custom widget | `html2pdf.py` — read the banner in that file first |

@@ -26,9 +26,9 @@ from typing import Optional
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
-from cookieui import (App, View, Label, TextInput, Button,
+from cookieui import (App, View, Window, Label, TextInput, Button,
                       Widget, DEFAULT, FileBrowser,
-                      WindowColumn, stack_below, stack_beside, bind_quit)
+                      stack_below, stack_beside, bind_quit)
 
 # ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -148,10 +148,10 @@ class Html2PdfApp(App):
         lx  = 2
         top = 1
 
-        # WindowColumn stacks windows vertically, auto-reserving each drop shadow
-        # plus one gap row (gap=1) — no manual SHADOW/VGAP math. stack_beside() gives
-        # the right column's X (shadow column + clear columns). Tab order follows the
-        # order focusable children are added below.
+        # The manual-geometry escape hatch: this is a raw App (not TuiApp), so it
+        # places windows by hand. stack_below(y, h) gives the next Y down (window
+        # height + its drop shadow + one gap row); stack_beside(x, w) gives the
+        # right column's X. Tab order follows the order focusable children are added.
         view = View()
 
         # ── Left column: file browser (floating widget) then stacked windows ──
@@ -162,38 +162,44 @@ class Html2PdfApp(App):
                                     extensions={'.html', '.htm'})
         view.add(self._browser)                       # focusable: browser
 
-        left = WindowColumn(view, x=lx, y=stack_below(top, browser_h),
-                            width=browser_w, gap=1)
-
-        out_win = left.window(3, title="Output File")
+        ly = stack_below(top, browser_h)              # first free row below the browser
+        out_win = Window(lx, ly, browser_w, 3, title="Output File")
+        view.add(out_win)
         lay = out_win.layout()                        # content anchor — no x/y/width math
         inp_w = lay.width - 6                          # leave room for " .pdf"
         self._out_input = TextInput(lay.x, lay.y, inp_w, placeholder="filename")
         ext_lbl = Label(lay.x + inp_w + 1, lay.y, ".pdf", color=t.title_fg)
         out_win.add(self._out_input, ext_lbl)         # focusable: output input
+        ly = stack_below(ly, 3)                       # advance past out_win + shadow + gap
 
         # ── Right column: page size / margins / options ──
-        right = WindowColumn(view, x=stack_beside(lx, browser_w), y=top, gap=1)
+        rx, ry = stack_beside(lx, browser_w), top
+        size_win = Window(rx, ry, 29, len(PDF_SIZES) + 2, title="Page Size")
+        view.add(size_win)
+        self._size_radio = size_win.layout().radio_group(PDF_SIZES)    # rows carry size dict
+        ry = stack_below(ry, len(PDF_SIZES) + 2)
 
-        size_win = right.window(len(PDF_SIZES) + 2, title="Page Size", width=29)
-        self._size_radio = size_win.layout().radio_group(PDF_SIZES)    # rows carry size dict (auto-added)
+        margin_win = Window(rx, ry, 25, len(MARGINS) + 2, title="Margins")
+        view.add(margin_win)
+        self._margin_radio = margin_win.layout().radio_group(MARGINS)  # rows carry margin dict
+        ry = stack_below(ry, len(MARGINS) + 2)
 
-        margin_win = right.window(len(MARGINS) + 2, title="Margins", width=25)
-        self._margin_radio = margin_win.layout().radio_group(MARGINS)  # rows carry margin dict (auto-added)
-
-        opt_win = right.window(4, title="Options", width=25)  # border + 2 checkboxes + border
+        opt_win = Window(rx, ry, 25, 4, title="Options")   # border + 2 checkboxes + border
+        view.add(opt_win)
         opt = opt_win.layout(spacing=0)               # two adjacent checkbox rows (auto-added)
         self._landscape = opt.checkbox("Landscape")
         self._hifi      = opt.checkbox("High Fidelity")
 
         # ── Status window + convert button (bottom of the left column) ──
-        status_win = left.window(3, title="Status")
+        status_win = Window(lx, ly, browser_w, 3, title="Status")
+        view.add(status_win)
         slay = status_win.layout()
         status_bar = StatusBar(slay.x, slay.y, slay.width, self)
+        ly = stack_below(ly, 3)                       # below the status window
 
         btn_w = 20
         btn_x = lx + (browser_w - btn_w) // 2
-        self._conv_btn = Button(btn_x, left.y, "Convert to PDF", on_click=self._on_convert)
+        self._conv_btn = Button(btn_x, ly, "Convert to PDF", on_click=self._on_convert)
         view.add(self._conv_btn)                      # focusable: convert button
 
         status_win.add(status_bar)                    # non-focusable status text

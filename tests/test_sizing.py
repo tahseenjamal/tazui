@@ -120,6 +120,43 @@ def test_short_content_fit_window_is_vertically_centered():
     assert abs(top_margin - bottom_margin) <= 1, 'content-fit window should sit centered'
 
 
+# ── rows(): the vertical mirror of columns() — stacked, coordinate-free ──────
+
+class RowsApp(TuiApp):
+    def build_view(self):
+        from cookieui import View
+        view = View()
+        self.wins = self.rows(view, [12, 3], titles=['Log', 'Status'], width=0.6)
+        return view
+
+
+def test_rows_stacks_windows_shadow_aware_and_centered():
+    app = make(RowsApp)
+    log, status = app.wins
+    from cookieui.widgets.window import Window
+    assert isinstance(log, Window) and isinstance(status, Window)
+    assert log.height == 12 and status.height == 3        # explicit heights honored
+    assert log.width == status.width == round(W * 0.6)    # shared width
+    assert log.x == status.x == (W - log.width) // 2      # block centered horizontally
+    # status sits exactly where stack_below puts it: past the log's shadow + gap
+    assert status.y == stack_below(log.y, log.height)
+    # the whole stack clears the status bar
+    assert status.y + status.height - 1 + 1 < H - 3
+
+
+def test_rows_int_spec_makes_equal_windows():
+    class EqualRows(TuiApp):
+        def build_view(self):
+            from cookieui import View
+            view = View()
+            self.wins = self.rows(view, 3)
+            return view
+    app = make(EqualRows)
+    assert len(app.wins) == 3
+    heights = {w.height for w in app.wins}
+    assert len(heights) == 1                              # all equal height
+
+
 # ── Content-fit width: a too-wide row widens the window, never overflows it ──
 
 class WideRowApp(TuiApp):

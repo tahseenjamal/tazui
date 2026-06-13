@@ -465,76 +465,6 @@ def bind_quit(view, on_quit: Callable[[], None], keys=('q',), escape: bool = Tru
     view.handle_key = handler
 
 
-class WindowColumn:
-    """Stacks bordered windows vertically in a view, auto-advancing past each drop shadow.
-
-    Mirrors VerticalLayout, but operates on whole Windows and handles the view wiring:
-    each .window() call creates the Window, adds it to the view, calls set_view(), and
-    advances the cursor by height + shadow + gap (via stack_below) so the next window
-    clears the shadow. Removes the manual Y math, the local SHADOW/VGAP constants, and
-    the repetitive view.add(...) / set_view(...) boilerplate.
-
-    (For side-by-side windows use TuiApp.columns(); its spacing already matches
-    stack_beside().)
-
-    Example:
-        col = WindowColumn(view, x=2, y=1, width=34, gap=1)
-        out_win    = col.window(3, title='Output File')   # created, added, linked
-        status_win = col.window(3, title='Status')
-        btn_y      = col.y       # first free row below the column, e.g. a floating button
-
-    Differing widths within one column (pass per-window width):
-        col = WindowColumn(view, x=right_x, y=1, gap=1)
-        size_win   = col.window(len(SIZES) + 2,  title='Page Size', width=29)
-        margin_win = col.window(len(MARGINS) + 2, title='Margins',  width=25)
-    """
-
-    def __init__(self, view, x: int, y: int, width: Optional[int] = None,
-                 gap: int = 1, shadow: int = SHADOW):
-        """Initialize a vertical window stack.
-
-        Args:
-            view: View the windows are added to.
-            x: Left edge X for every window in the column.
-            y: Starting Y of the first window.
-            width: Default window width. May be omitted if every .window() call passes width=.
-            gap: Blank rows between a window's shadow and the next window (default 1).
-            shadow: Drop-shadow extent (default SHADOW=1).
-        """
-        self.view   = view
-        self.x      = x
-        self._y     = y
-        self.width  = width
-        self.gap    = gap
-        self.shadow = shadow
-
-    @property
-    def y(self) -> int:
-        """Current cursor Y — the first free row below the last window's shadow + gap."""
-        return self._y
-
-    def window(self, height: int, title: str = '', width: Optional[int] = None,
-               icon: str = '') -> Window:
-        """Create a Window at the cursor, add+link it to the view, and advance the cursor.
-
-        Returns the Window so you can position children via win.interior()/interior_size().
-        """
-        w = width if width is not None else self.width
-        if w is None:
-            raise ValueError(
-                "WindowColumn.window() needs a width: set a default width on the "
-                "WindowColumn or pass width=... to this call."
-            )
-        win = Window(self.x, self._y, w, height, title=title, icon=icon)
-        self.view.add(win)       # auto-links the view (set_view)
-        self._y = stack_below(self._y, height, gap=self.gap, shadow=self.shadow)
-        return win
-
-    def gap_rows(self, rows: int = 1) -> None:
-        """Insert extra blank rows before the next window (beyond the per-window gap)."""
-        self._y += rows
-
-
 class VerticalLayout:
     """Helper for positioning widgets vertically within a container.
 
@@ -942,6 +872,44 @@ class TuiApp:
             view.add(win)
             wins.append(win)
             x = stack_beside(x, widths[i], gap=gap)
+        return tuple(wins)
+
+    def rows(self, view, spec, titles: Optional[List[str]] = None,
+             width=0.6, gap: int = 1, x: Optional[int] = None) -> tuple:
+        """Stack windows top to bottom — the vertical mirror of columns(). No coordinates.
+
+        `spec` is either a window count (equal heights filling the screen) or a list of
+        per-window heights — each an int (rows) or a fraction (`0.3` of the terminal):
+
+            log, status = self.rows(view, [12, 3], titles=['Build log', 'Status'])
+            top, bottom = self.rows(view, 2)            # two equal-height windows
+
+        All windows share `width` (a fraction of the terminal, or cells). The stack is
+        centered as a block — vertically in the space above the status bar, and
+        horizontally unless `x` is given — with each window's drop shadow + `gap`
+        reserved between neighbours. The windows are added + linked to the view and
+        returned as a tuple. (For side-by-side windows use columns().)
+        """
+        W, H = self.ts.width(), self.ts.height()
+        ww = min(resolve_size(width, W), W - 2)
+        wx = x if x is not None else (W - ww) // 2
+        reserve = 3 if (self.AUTO_STATUS and self.STATUS_HINT) else 0
+        avail = H - reserve - 1                          # rows the stack may occupy
+        if isinstance(spec, int):
+            inner = avail - 1 - (spec - 1) * (SHADOW + gap)
+            heights = [max(3, inner // spec)] * spec
+        else:
+            heights = [resolve_size(h, H) for h in spec]
+        n = len(heights)
+        block = sum(heights) + (n - 1) * (SHADOW + gap)  # window rows + shadows + gaps
+        wy = max(1, 1 + (avail - block) // 2)
+        wins, y = [], wy
+        for i, h in enumerate(heights):
+            win = Window(wx, y, ww, h,
+                         title=(titles[i] if titles and i < len(titles) else ''))
+            view.add(win)
+            wins.append(win)
+            y = stack_below(y, h, gap=gap)
         return tuple(wins)
 
     # ── View Management ──────────────────────────────────────────────────

@@ -9,7 +9,7 @@ from .helpers import (TerminalSizeProvider, calculate_centered_window,
                       create_status_bar, layout_buttons,
                       chain_key_handler, bind_enter_action,
                       calculate_footer_position, TuiApp,
-                      VerticalLayout, WindowColumn, resolve_size,
+                      VerticalLayout, resolve_size,
                       stack_below, stack_beside, SHADOW,
                       footer_buttons, buttons_below, bind_quit, bind_key)
 from .contrib import FileBrowser
@@ -26,7 +26,7 @@ __all__ = [
     'TerminalSizeProvider', 'calculate_centered_window', 'create_status_bar',
     'layout_buttons', 'chain_key_handler', 'bind_enter_action',
     'calculate_footer_position', 'TuiApp',
-    'VerticalLayout', 'WindowColumn', 'resolve_size',
+    'VerticalLayout', 'resolve_size',
     'stack_below', 'stack_beside', 'SHADOW',
     'footer_buttons', 'buttons_below', 'bind_quit', 'bind_key',
     'FileBrowser',

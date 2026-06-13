@@ -29,7 +29,7 @@ What CookieUI adds that Newt never had:
 
 - **Live widgets** — `Spinner` and `ProgressBar` animate while your code works; set `label.text` or
   `progress.value` from anywhere and the next frame shows it. Newt forms are frozen while displayed.
-- **Layout helpers instead of grid math** — `win.layout()`, `WindowColumn`, `footer_buttons()`,
+- **Layout helpers instead of grid math** — `win.layout()`, `rows()`, `footer_buttons()`,
   shadow-aware stacking; no coordinate arithmetic, no `Grid` assembly.
 - **An app framework, not just dialogs** — view navigation, auto-wired quit keys, a status bar,
   value-carrying listboxes, one-call background tasks (`run_task`), and automatic re-layout when
@@ -51,7 +51,7 @@ What CookieUI adds that Newt never had:
 - **Widget/window architecture** — composable containers and controls with real focus management
 - **No eyeballed numbers** — sizes are fractions of the terminal or **content-fit** (the window wraps
   what you put in it); text clips at draw time; fill widgets compute their own height
-- **Automatic layout** — `page()`, `columns()`, `win.layout()`, `WindowColumn` remove positioning math
+- **Automatic layout** — `page()`, `columns()`, `rows()`, `win.layout()` remove positioning math
 - **Automatic resize handling** — push views as builders and they rebuild + re-center when the terminal resizes
 - **Batteries-included `TuiApp`** — auto-linked windows, auto Esc/q quit, an auto status bar, and one-line dialogs
 - **One-line modal dialogs** — `show_message` / `confirm` / `prompt` / `choose`: auto-sized, self-closing
@@ -388,14 +388,17 @@ right.layout().radio_group(PROTOCOLS)
 Options: `spec` (count or weight list), `height` (default content-fit; fraction/cells/list),
 `width` (the whole block, default 0.9 of the terminal), `gap`.
 
-### `WindowColumn` — stacked windows (shadow-aware)
+### `self.rows()` — stacked windows (the vertical mirror of `columns`)
 
 ```python
-col = WindowColumn(view, x=2, y=1, width=34, gap=1)
-out_win    = col.window(3, title='Output File')  # created, added, advanced past the shadow
-status_win = col.window(3, title='Status')
-btn_y      = col.y                                # first free row below the column
+log, status = self.rows(view, [12, 3], titles=['Build log', 'Status'], width=0.8)
+log.layout()      # furnish each returned window through its own cursor
+status.layout()
 ```
+
+`spec` is a window count (equal heights) or a list of per-window heights (ints = rows,
+floats = fraction of the terminal); all share `width`, the stack is centered as a block,
+each window's drop shadow + `gap` reserved between neighbours.
 
 ### Positioning primitives
 
