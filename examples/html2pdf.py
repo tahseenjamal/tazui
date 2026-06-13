@@ -2,8 +2,8 @@
 """HTML → PDF converter — ⚠ THE LOW-LEVEL ESCAPE-HATCH EXAMPLE. READ THE OTHER NINE FIRST.
 
 This file is deliberately written a level *below* the rest of examples/: it subclasses
-raw `App` (not `TuiApp`), builds views by hand, and does its own geometry — `WindowColumn`,
-`stack_beside`/`stack_below`, raw `Button(x, y, ...)` coordinates, and responsive math like
+raw `App` (not `TuiApp`), builds views by hand, and does its own geometry — manual
+`stack_below`/`stack_beside` stacking, raw `Button(x, y, ...)` coordinates, and responsive math like
 `browser_h = max(5, min(12, H - 17))`. None of that is how you normally write a cookieui
 app; it exists to show what the high-level helpers (`TuiApp`, `page()`, `columns()`,
 `win.layout()`, `fill_with()`, auto-quit/status/resize) are doing for you, and what's
