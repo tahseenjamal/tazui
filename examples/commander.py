@@ -28,7 +28,7 @@ import os
 import shutil
 import pathlib
 
-from cookieui import (TuiApp, View, FileBrowser, TextView, ProgressBar, Label,
+from cookieui import (TuiApp, View, Window, FileBrowser, TextView, ProgressBar, Label,
                       bind_key, bind_quit, stack_below)
 from cookieui.core.event import KeyType
 
@@ -116,7 +116,8 @@ class Commander(TuiApp):
 
     def build_view(self):
         view = View()
-        lwin, rwin = self.columns(view, 2, height=0.72, y=1)
+        H, W = self.ts.height(), self.ts.width()
+        lwin, rwin = self.columns(view, 2, height=H - 10, y=1)   # leave room below
         self.left = lwin.fill_with(FileBrowser, self.ldir,
                                    on_select=self.view_file,
                                    on_dir_change=lambda p: self._remember(0, p))
@@ -124,13 +125,22 @@ class Commander(TuiApp):
                                     on_select=self.view_file,
                                     on_dir_change=lambda p: self._remember(1, p))
 
-        # shared progress + status, stacked under the panes (shadow-aware)
+        # the shared progress bar lives in a framed 'Transfer' window under the
+        # panes — a 3-row window IS a frame + title + one content row (Ch 18)
         span = (rwin.x + rwin.width) - lwin.x
-        by = stack_below(lwin.y, lwin.height)
-        bar = ProgressBar(lwin.x, by, span)          # run_task adopts the sole bar
-        view.add(bar)
-        self.status = Label(lwin.x, by + 1, HINT, max_width=span)
-        view.add(self.status)
+        xfer = Window(lwin.x, stack_below(lwin.y, lwin.height), span, 3, title='Transfer')
+        view.add(xfer)
+        ix, iy, iw, _ = xfer.interior_rect()
+        bar = ProgressBar(ix, iy, iw)                # run_task adopts the sole bar
+        xfer.add(bar)
+
+        # a real status bar along the bottom row — surface-filled, not a bare
+        # label floating on the background — carrying the hint and outcomes
+        sbar = Window(0, H - 3, W, 3, shadow=False)
+        view.add(sbar)
+        sx, sy = sbar.interior()
+        self.status = Label(sx + 1, sy, HINT, max_width=W - 4)
+        sbar.add(self.status)
 
         bind_key(view, KeyType.CHAR, self.copy, char='c')
         bind_key(view, KeyType.CHAR, self.move, char='m')
