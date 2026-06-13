@@ -11,6 +11,9 @@ Font:   JetBrains Mono (Regular + Bold). Looked up in COOKIEUI_SHOT_FONT_DIR,
         then common locations. `pip install pillow` is the only extra need.
 """
 import importlib.util
+import base64
+import io
+import atexit
 import os
 import pathlib
 import sys
@@ -127,31 +130,63 @@ def grid_image(screen):
     return img
 
 
+# ── Terminal chrome: rendered by the SAME Chromium + CSS box-shadow the
+#    book cover uses, so the drop shadow is identical to the cover's (a PIL
+#    Gaussian blur cannot reproduce Chromium's layered box-shadow). ───────
+_FRAME_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+html,body{{margin:0;padding:0;background:transparent}}
+.stage{{display:inline-block;padding:46px 80px 120px 80px}}
+.termwrap{{width:510px;border-radius:10px;
+  box-shadow:0 2px 6px rgba(40,32,20,.16),0 10px 22px rgba(40,32,20,.20),0 30px 60px rgba(40,32,20,.26)}}
+.term{{width:510px;background:#2A2018;border-radius:10px;overflow:hidden;
+  font-family:'DejaVu Sans Mono','JetBrains Mono','Menlo','Consolas',monospace}}
+.termbar{{display:flex;align-items:center;background:#3A2E22;height:29px;padding:0 12px}}
+.dot{{width:9px;height:9px;border-radius:9999px;display:inline-block}}
+.title{{flex:1;text-align:center;color:#BBA98E;font-size:11px;padding-right:43px}}
+img{{width:100%;display:block}}
+</style></head><body>
+<div class="stage"><div class="termwrap"><div class="term">
+<div class="termbar">
+<span class="dot" style="background:#E0635C"></span>
+<span class="dot" style="background:#E8A33D;margin-left:7px"></span>
+<span class="dot" style="background:#9CC97F;margin-left:7px"></span>
+<span class="title">{title}</span>
+</div>
+<img src="data:image/png;base64,{b64}">
+</div></div></div>
+</body></html>"""
+
+_PW = {}
+
+
+def _frame_page():
+    if 'page' not in _PW:
+        from playwright.sync_api import sync_playwright
+        _PW['pw'] = sync_playwright().start()
+        _PW['browser'] = _PW['pw'].chromium.launch()
+        _PW['page'] = _PW['browser'].new_page(device_scale_factor=4)
+    return _PW['page']
+
+
+@atexit.register
+def _close_frame_browser():
+    if 'browser' in _PW:
+        _PW['browser'].close()
+        _PW['pw'].stop()
+
+
 def terminal_frame(shot, title):
-    BAR, RAD, PAD = 58, 18, 170
-    W, H = shot.width, shot.height + BAR
-    canvas = Image.new('RGBA', (W + 2 * PAD, H + 2 * PAD), (0, 0, 0, 0))
-    # three shadow layers, like macOS (and the cover's CSS box-shadow) —
-    # the cover's spreads scaled to this canvas: a tight contact shadow
-    # plus two progressively larger, much softer ones for real depth
-    for dy, blur, alpha in ((7, 10, 44), (32, 30, 52), (80, 60, 64)):
-        sh = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
-        ImageDraw.Draw(sh).rounded_rectangle(
-            [PAD, PAD + dy, PAD + W, PAD + H + dy], RAD, fill=(30, 24, 16, alpha))
-        canvas.alpha_composite(sh.filter(ImageFilter.GaussianBlur(blur)))
-    term = Image.new('RGBA', (W, H))
-    td = ImageDraw.Draw(term)
-    td.rectangle([0, 0, W, BAR], fill=(58, 46, 34, 255))
-    term.paste(shot, (0, BAR))
-    for i, color in enumerate(((224, 99, 92), (232, 163, 61), (156, 201, 127))):
-        cx = 34 + i * 30
-        td.ellipse([cx - 10, BAR // 2 - 10, cx + 10, BAR // 2 + 10], fill=color)
-    td.text((W // 2, BAR // 2), title, font=TITLEFONT,
-            fill=(187, 169, 142), anchor='mm')
-    mask = Image.new('L', (W, H), 0)
-    ImageDraw.Draw(mask).rounded_rectangle([0, 0, W, H], RAD, fill=255)
-    canvas.paste(term, (PAD, PAD), mask)
-    return canvas
+    """Wrap a screenshot in the cover's terminal chrome (dark bar, traffic
+    lights, rounded corners) and the cover's exact drop shadow, rendered by
+    Chromium so book frames match the cover by construction. Returns RGBA
+    with a transparent margin so it composites onto any page background."""
+    buf = io.BytesIO()
+    shot.save(buf, 'PNG')
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    page = _frame_page()
+    page.set_content(_FRAME_HTML.format(title=title, b64=b64))
+    png = page.locator('.stage').screenshot(omit_background=True)
+    return Image.open(io.BytesIO(png)).convert('RGBA')
 
 
 # ── the stagings ──────────────────────────────────────────────────────────────
